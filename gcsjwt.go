@@ -82,10 +82,11 @@ func PublicKeys(ctx context.Context) ([]*PublicKey, error) {
 	return gcsJwt.PublicKeys(ctx)
 }
 
-// Returns an error if the signedJwt has the incorrect signature or is expired.
-func Validate(ctx context.Context, signedJwt string) error {
+// Returns the jwt claims if validation succeeds.
+// Fails if the signedJwt has the incorrect signature or is expired.
+func Validate(ctx context.Context, signedJwt string) (jwt.MapClaims, error) {
 	if gcsJwt == nil {
-		return fmt.Errorf("local gcsJwt instance not yet initialised via Init")
+		return nil, fmt.Errorf("local gcsJwt instance not yet initialised via Init")
 	}
 	return gcsJwt.Validate(ctx, signedJwt)
 }
@@ -145,9 +146,11 @@ func (g *GcsJwt) PublicKeys(ctx context.Context) ([]*PublicKey, error) {
 	return publicKeys, nil
 }
 
-// Returns an error if the signedJwt has the incorrect signature or is expired.
-func (g *GcsJwt) Validate(ctx context.Context, signedJwt string) error {
-	_, err := jwt.Parse(signedJwt, func(token *jwt.Token) (interface{}, error) {
+// Returns the jwt claims if validation succeeds.
+// Fails if the signedJwt has the incorrect signature or is expired.
+func (g *GcsJwt) Validate(ctx context.Context, signedJwt string) (jwt.MapClaims, error) {
+	claims := jwt.MapClaims{}
+	_, err := jwt.ParseWithClaims(signedJwt, claims, func(token *jwt.Token) (interface{}, error) {
 		// get kid from headers
 		kid, ok := token.Header["kid"].(string)
 		if !ok {
@@ -170,9 +173,9 @@ func (g *GcsJwt) Validate(ctx context.Context, signedJwt string) error {
 		return &key[0].PublicKey, nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return claims, nil
 }
 
 // Returns the bytes in the provided Google Cloud Storage object.
